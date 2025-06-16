@@ -14,7 +14,7 @@ async function* generateManuscriptWithClaudeStream(githubUrl: string, projectNam
   try {
     const stream = await anthropic.beta.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 20000,
+      max_tokens: 1000,
       temperature: 1,
       stream: true,
       messages: [
@@ -36,25 +36,25 @@ Format the manuscript as a clear, engaging presentation script that can be read 
 
 Project name: ${projectName}. Create headings and use emojis.
 
-Use web search to access the GitHub repository and analyze recent commits, pull requests, and releases to provide accurate, up-to-date information about what users would notice.`
+Use the MCP server to access the GitHub repository and analyze recent commits, pull requests, and releases to provide accurate, up-to-date information about what users would notice.`
             }
           ]
         }
       ],
-      tools: [
+      mcp_servers: [
         {
-          name: "web_search",
-          type: "web_search_20250305",
-          allowed_domains: [
-            "github.com"
-          ]
+          name: "Github",
+          url: "https://api.githubcopilot.com/mcp/",
+          type: "url",
+          authorization_token: `${process.env.GITHUB_TOKEN}`
         }
       ],
+      /*
       thinking: {
         type: "enabled",
         budget_tokens: 16000
-      },
-      betas: ["web-search-2025-03-05"]
+      }, */
+      betas: ["mcp-client-2025-04-04"]
     });
 
     for await (const chunk of stream) {
@@ -138,10 +138,15 @@ export async function POST(
             errorMessage = error.message;
           } else if (typeof error === 'object' && error !== null) {
             // Handle Anthropic API errors specifically
-            if ('error' in error && typeof error.error === 'object') {
-              errorMessage = error.error.message || error.message || errorMessage;
+            if ('error' in error && typeof error.error === 'object' && error.error !== null) {
+              const errorObj = error.error as Record<string, unknown>;
+              const parentObj = error as Record<string, unknown>;
+              errorMessage = (typeof errorObj.message === 'string' ? errorObj.message : '') || 
+                           (typeof parentObj.message === 'string' ? parentObj.message : '') || 
+                           errorMessage;
             } else if ('message' in error) {
-              errorMessage = error.message;
+              const errorObj = error as Record<string, unknown>;
+              errorMessage = typeof errorObj.message === 'string' ? errorObj.message : errorMessage;
             }
           }
           

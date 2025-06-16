@@ -15,7 +15,7 @@ interface ProjectMetadata {
   timeCreated?: string;
   githubUrl?: string;
   projectName?: string;
-  [key: string]: string | number | boolean | null;
+  [key: string]: string | number | boolean | null | undefined;
 }
 
 export default function ProjectDetails() {
