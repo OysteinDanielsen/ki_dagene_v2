@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
 
 interface ProjectData {
   manuscript: string;
@@ -319,7 +320,9 @@ This summary provides the key points to include in your presentation slides. Cus
                 <div className="collapse-content">
                   <div className="prose max-w-none">
                     {projectData?.manuscript ? (
-                      <pre className="whitespace-pre-wrap text-sm">{projectData.manuscript}</pre>
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown>{projectData.manuscript}</ReactMarkdown>
+                      </div>
                     ) : manuscriptError ? (
                       <div className="text-center py-8">
                         <div className="alert alert-error mb-4">
@@ -349,7 +352,9 @@ This summary provides the key points to include in your presentation slides. Cus
                           <span className="loading loading-spinner loading-sm"></span>
                           <span className="text-sm text-base-content/70">Generating manuscript...</span>
                         </div>
-                        <pre className="whitespace-pre-wrap text-sm bg-base-200 p-4 rounded">{streamingText}</pre>
+                        <div className="bg-base-200 p-4 rounded prose prose-sm max-w-none">
+                          <ReactMarkdown>{streamingText}</ReactMarkdown>
+                        </div>
                       </div>
                     ) : (
                       <div className="text-center py-8">
@@ -399,7 +404,9 @@ This summary provides the key points to include in your presentation slides. Cus
                 <div className="collapse-content">
                   <div className="prose max-w-none">
                     {projectData?.audioForPresentation ? (
-                      <pre className="whitespace-pre-wrap text-sm">{projectData.audioForPresentation}</pre>
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown>{projectData.audioForPresentation}</ReactMarkdown>
+                      </div>
                     ) : (
                       <p className="text-base-content/50 italic">No audio script content</p>
                     )}
@@ -426,7 +433,9 @@ This summary provides the key points to include in your presentation slides. Cus
                 <div className="collapse-content">
                   <div className="prose max-w-none">
                     {projectData?.summaryForPresentation ? (
-                      <pre className="whitespace-pre-wrap text-sm">{projectData.summaryForPresentation}</pre>
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown>{projectData.summaryForPresentation}</ReactMarkdown>
+                      </div>
                     ) : (
                       <div className="text-center py-8">
                         <p className="text-base-content/50 italic mb-4">No summary content</p>

@@ -24,6 +24,7 @@ async function* generateManuscriptWithClaudeStream(githubUrl: string, projectNam
             {
               type: "text",
               text: `Please analyze the GitHub repository at ${githubUrl} and create a 1-minute presentation manuscript about the latest week's changes that would be noticeable to users.
+              It should be easy to read and engaging, suitable for a user-facing presentation. Write complete sentences so its easy to read. include a joke or light-hearted comment to make it engaging.
 
 Focus on:
 - User-facing features and improvements
@@ -33,7 +34,7 @@ Focus on:
 
 Format the manuscript as a clear, engaging presentation script that can be read in about 60 seconds. Include an introduction, main points, and conclusion.
 
-Project name: ${projectName}
+Project name: ${projectName}. Create headings and use emojis.
 
 Use web search to access the GitHub repository and analyze recent commits, pull requests, and releases to provide accurate, up-to-date information about what users would notice.`
             }
