@@ -24,6 +24,8 @@ export default function ProjectDetails() {
   const [projectMetadata, setProjectMetadata] = useState<ProjectMetadata>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [manuscriptLoading, setManuscriptLoading] = useState(false);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   const projectId = params.id as string;
 
@@ -58,6 +60,106 @@ export default function ProjectDetails() {
       fetchProjectData();
     }
   }, [projectId]);
+
+  const generateManuscript = async () => {
+    setManuscriptLoading(true);
+    try {
+      const response = await fetch(`/api/project/${projectId}/manuscript`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: `# Generated Manuscript for ${projectMetadata.projectName || projectId}
+
+This is a generated manuscript for the project.
+
+## Project Overview
+Project ID: ${projectId}
+Created: ${projectMetadata.timeCreated ? new Date(projectMetadata.timeCreated).toLocaleDateString() : 'Unknown'}
+
+## Content
+This manuscript was generated automatically. Add your content here.
+
+## Next Steps
+- Review and edit the manuscript content
+- Add specific project details
+- Include relevant documentation`
+        })
+      });
+
+      if (response.ok) {
+        // Refresh project data to show the new manuscript
+        window.location.reload();
+      } else {
+        console.error('Failed to generate manuscript');
+      }
+    } catch (error) {
+      console.error('Error generating manuscript:', error);
+    } finally {
+      setManuscriptLoading(false);
+    }
+  };
+
+  const generateSummary = async () => {
+    setSummaryLoading(true);
+    try {
+      const response = await fetch(`/api/project/${projectId}/summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: `# Summary for Presentation - ${projectMetadata.projectName || projectId}
+
+## Project Overview
+- **Project ID:** ${projectId}
+- **Created:** ${projectMetadata.timeCreated ? new Date(projectMetadata.timeCreated).toLocaleDateString() : 'Unknown'}
+- **Repository:** ${projectMetadata.githubUrl || 'Not specified'}
+
+## Key Points for Slides
+
+### Slide 1: Introduction
+- Project name and purpose
+- Brief overview of objectives
+
+### Slide 2: Technical Details
+- Technology stack
+- Architecture overview
+- Key components
+
+### Slide 3: Implementation
+- Development process
+- Key features implemented
+- Challenges overcome
+
+### Slide 4: Results
+- Achievements
+- Performance metrics
+- Lessons learned
+
+### Slide 5: Next Steps
+- Future improvements
+- Roadmap
+- Conclusion
+
+## Presentation Notes
+This summary provides the key points to include in your presentation slides. Customize each section based on your project's specific details and requirements.`
+        })
+      });
+
+      if (response.ok) {
+        // Refresh project data to show the new summary
+        window.location.reload();
+      } else {
+        console.error('Failed to generate summary');
+      }
+    } catch (error) {
+      console.error('Error generating summary:', error);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -160,10 +262,16 @@ export default function ProjectDetails() {
         </div>
 
         {/* Content Steps */}
-        <div className="steps steps-vertical w-full [&>.step]:!gap-0 [&>.step>.step-content]:!mt-0">
+        <div className="relative">
+          {/* Continuous line */}
+          <div className="absolute left-4 top-8 w-0.5 bg-primary/50 z-0" style={{height: 'calc(100% - 2rem)'}}></div>
+          
           {/* Manuscript Step */}
-          <div className="step step-primary">
-            <div className="step-content w-full">
+          <div className="flex items-start gap-4 relative z-10 mb-8">
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">1</div>
+            </div>
+            <div className="flex-1 -mt-1">
               <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
                 <input type="checkbox" className="peer" defaultChecked />
                 <div className="collapse-title text-xl font-medium">
@@ -177,7 +285,28 @@ export default function ProjectDetails() {
                     {projectData?.manuscript ? (
                       <pre className="whitespace-pre-wrap text-sm">{projectData.manuscript}</pre>
                     ) : (
-                      <p className="text-base-content/50 italic">No manuscript content</p>
+                      <div className="text-center py-8">
+                        <p className="text-base-content/50 italic mb-4">No manuscript content</p>
+                        <button 
+                          className="btn btn-primary"
+                          onClick={generateManuscript}
+                          disabled={manuscriptLoading}
+                        >
+                          {manuscriptLoading ? (
+                            <>
+                              <span className="loading loading-spinner loading-sm"></span>
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                              Generate Manuscript
+                            </>
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -186,8 +315,11 @@ export default function ProjectDetails() {
           </div>
 
           {/* Audio Step */}
-          <div className="step step-primary">
-            <div className="step-content w-full">
+          <div className="flex items-start gap-4 relative z-10 mb-8">
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">2</div>
+            </div>
+            <div className="flex-1 -mt-1">
               <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
                 <input type="checkbox" className="peer" />
                 <div className="collapse-title text-xl font-medium">
@@ -210,8 +342,11 @@ export default function ProjectDetails() {
           </div>
 
           {/* Summary Step */}
-          <div className="step step-primary">
-            <div className="step-content w-full">
+          <div className="flex items-start gap-4 relative z-10 mb-8">
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">3</div>
+            </div>
+            <div className="flex-1 -mt-1">
               <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
                 <input type="checkbox" className="peer" />
                 <div className="collapse-title text-xl font-medium">
@@ -225,7 +360,28 @@ export default function ProjectDetails() {
                     {projectData?.summaryForPresentation ? (
                       <pre className="whitespace-pre-wrap text-sm">{projectData.summaryForPresentation}</pre>
                     ) : (
-                      <p className="text-base-content/50 italic">No summary content</p>
+                      <div className="text-center py-8">
+                        <p className="text-base-content/50 italic mb-4">No summary content</p>
+                        <button 
+                          className="btn btn-primary"
+                          onClick={generateSummary}
+                          disabled={summaryLoading}
+                        >
+                          {summaryLoading ? (
+                            <>
+                              <span className="loading loading-spinner loading-sm"></span>
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                              Generate Summary
+                            </>
+                          )}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -234,8 +390,11 @@ export default function ProjectDetails() {
           </div>
 
           {/* Slides Step */}
-          <div className="step step-primary">
-            <div className="step-content w-full">
+          <div className="flex items-start gap-4 relative z-10">
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">4</div>
+            </div>
+            <div className="flex-1 -mt-1">
               <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
                 <input type="checkbox" className="peer" />
                 <div className="collapse-title text-xl font-medium">
