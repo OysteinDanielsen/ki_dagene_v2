@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.54.0",
     "@types/mime-types": "^3.0.1",
     "daisyui": "^5.0.43",
     "mime-types": "^3.0.1",

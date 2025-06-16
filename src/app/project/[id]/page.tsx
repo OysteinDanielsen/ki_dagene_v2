@@ -14,7 +14,7 @@ interface ProjectMetadata {
   timeCreated?: string;
   githubUrl?: string;
   projectName?: string;
-  [key: string]: any;
+  [key: string]: string | number | boolean | null;
 }
 
 export default function ProjectDetails() {
@@ -26,6 +26,8 @@ export default function ProjectDetails() {
   const [error, setError] = useState<string | null>(null);
   const [manuscriptLoading, setManuscriptLoading] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
+  const [manuscriptError, setManuscriptError] = useState<string | null>(null);
 
   const projectId = params.id as string;
 
@@ -44,7 +46,7 @@ export default function ProjectDetails() {
           try {
             const parsedMetadata = JSON.parse(data.metadata);
             setProjectMetadata(parsedMetadata);
-          } catch (error) {
+          } catch {
             // If metadata is not valid JSON, treat it as text
             setProjectMetadata({ description: data.metadata });
           }
@@ -61,43 +63,77 @@ export default function ProjectDetails() {
     }
   }, [projectId]);
 
-  const generateManuscript = async () => {
+
+  const generateManuscript = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     setManuscriptLoading(true);
+    setStreamingText('');
+    setManuscriptError(null);
+    
     try {
+      console.log('Starting manuscript generation...');
+      
       const response = await fetch(`/api/project/${projectId}/manuscript`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: `# Generated Manuscript for ${projectMetadata.projectName || projectId}
-
-This is a generated manuscript for the project.
-
-## Project Overview
-Project ID: ${projectId}
-Created: ${projectMetadata.timeCreated ? new Date(projectMetadata.timeCreated).toLocaleDateString() : 'Unknown'}
-
-## Content
-This manuscript was generated automatically. Add your content here.
-
-## Next Steps
-- Review and edit the manuscript content
-- Add specific project details
-- Include relevant documentation`
-        })
       });
 
-      if (response.ok) {
-        // Refresh project data to show the new manuscript
-        window.location.reload();
-      } else {
-        console.error('Failed to generate manuscript');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.status === 'starting') {
+                console.log('Generation started');
+              } else if (data.chunk) {
+                setStreamingText(prev => prev + data.chunk);
+              } else if (data.complete) {
+                console.log('Generation completed');
+                setManuscriptLoading(false);
+                setTimeout(() => window.location.reload(), 1000);
+                return;
+              } else if (data.error) {
+                console.error('Claude API error received:', data.error);
+                setManuscriptError(data.error);
+                setManuscriptLoading(false);
+                setStreamingText('');
+                return;
+              }
+            } catch (parseError) {
+              console.warn('Failed to parse SSE data:', parseError);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error generating manuscript:', error);
-    } finally {
       setManuscriptLoading(false);
+      setStreamingText('');
+      setManuscriptError(error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
@@ -284,10 +320,42 @@ This summary provides the key points to include in your presentation slides. Cus
                   <div className="prose max-w-none">
                     {projectData?.manuscript ? (
                       <pre className="whitespace-pre-wrap text-sm">{projectData.manuscript}</pre>
+                    ) : manuscriptError ? (
+                      <div className="text-center py-8">
+                        <div className="alert alert-error mb-4">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div>
+                            <h3 className="font-bold">Generation Failed</h3>
+                            <div className="text-xs">{manuscriptError}</div>
+                          </div>
+                        </div>
+                        <button 
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={generateManuscript}
+                          disabled={manuscriptLoading}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Try Again
+                        </button>
+                      </div>
+                    ) : manuscriptLoading && streamingText ? (
+                      <div>
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className="loading loading-spinner loading-sm"></span>
+                          <span className="text-sm text-base-content/70">Generating manuscript...</span>
+                        </div>
+                        <pre className="whitespace-pre-wrap text-sm bg-base-200 p-4 rounded">{streamingText}</pre>
+                      </div>
                     ) : (
                       <div className="text-center py-8">
                         <p className="text-base-content/50 italic mb-4">No manuscript content</p>
                         <button 
+                          type="button"
                           className="btn btn-primary"
                           onClick={generateManuscript}
                           disabled={manuscriptLoading}
