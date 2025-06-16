@@ -28,7 +28,7 @@ export async function GET(
     const manuscriptPath = path.join(basePath, 'manuscript.md');
     const summaryPath = path.join(basePath, 'summary_for_presentation.md');
     const audioPath = path.join(basePath, 'audio_for_presentation.md');
-    const metadataPath = path.join(basePath, 'metadata.md');
+    const metadataPath = path.join(basePath, 'metadata.json');
 
     // Read all files
     const manuscript = await readFileContent(manuscriptPath);
