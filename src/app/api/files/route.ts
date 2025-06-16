@@ -30,8 +30,11 @@ export async function POST(request: NextRequest) {
       await mkdir(dirPath, { recursive: true });
     }
 
+    // Ensure filename has .md extension
+    const mdFilename = filename.endsWith('.md') ? filename : `${filename}.md`;
+
     // Save text content to file
-    const filePath = path.join(dirPath, filename);
+    const filePath = path.join(dirPath, mdFilename);
     await writeFile(filePath, text, 'utf8');
 
     return NextResponse.json({ text: 'File saved successfully' });

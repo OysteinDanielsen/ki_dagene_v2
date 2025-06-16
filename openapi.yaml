@@ -1,0 +1,173 @@
+openapi: 3.0.3
+info:
+  title: Git History Presentation Generator API
+  description: API for managing presentation files and content
+  version: 1.0.0
+  contact:
+    name: Git History Presentation Generator
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+paths:
+  /files:
+    post:
+      summary: Save a text file
+      description: Save text content to a markdown file in the specified directory. The file is automatically saved with .md extension.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+                - filename
+                - id
+              properties:
+                text:
+                  type: string
+                  description: The text content to save
+                  example: "# My Presentation\n\nThis is the content of my presentation."
+                filename:
+                  type: string
+                  description: The filename (without extension, .md will be added automatically)
+                  example: "manuscript"
+                id:
+                  type: string
+                  description: The directory ID where the file will be stored
+                  example: "project-123"
+      responses:
+        '200':
+          description: File saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text:
+                    type: string
+                    example: "File saved successfully"
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "No text provided"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text:
+                    type: string
+                    example: "Failed to save file"
+
+  /files/{id}:
+    get:
+      summary: Get presentation files
+      description: Retrieve manuscript, presentation summary, and audio script content for a given project ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The project ID
+          example: "project-123"
+      responses:
+        '200':
+          description: Successfully retrieved files
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  manuscript:
+                    type: string
+                    description: Content from manuscript.md file
+                    example: "# Project Manuscript\n\nThis is the main manuscript content."
+                  summaryForPresentation:
+                    type: string
+                    description: Content from summary_for_presentation.md file
+                    example: "# Presentation Summary\n\nKey points for the presentation."
+                  audioForPresentation:
+                    type: string
+                    description: Content from audio_for_presentation.md file
+                    example: "# Audio Script\n\nScript for audio narration."
+        '400':
+          description: Bad request - missing ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Missing id"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Failed to serve files"
+
+components:
+  schemas:
+    SaveFileRequest:
+      type: object
+      required:
+        - text
+        - filename  
+        - id
+      properties:
+        text:
+          type: string
+          description: The text content to save
+        filename:
+          type: string
+          description: The filename (without .md extension)
+        id:
+          type: string
+          description: The project/directory ID
+    
+    SaveFileResponse:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Success or error message
+    
+    GetFilesResponse:
+      type: object
+      properties:
+        manuscript:
+          type: string
+          description: Manuscript content
+        summaryForPresentation:
+          type: string
+          description: Presentation summary content
+        audioForPresentation:
+          type: string
+          description: Audio script content
+    
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+tags:
+  - name: Files
+    description: File management operations for presentations
