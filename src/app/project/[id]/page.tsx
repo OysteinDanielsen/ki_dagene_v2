@@ -114,9 +114,15 @@ export default function ProjectDetails() {
       {/* Content */}
       <div className="container mx-auto px-4 py-8">
         {/* Project Info */}
-        <div className="card bg-base-200 shadow-xl mb-8">
-          <div className="card-body">
-            <h2 className="card-title">Project Information</h2>
+        <div className="collapse collapse-arrow bg-base-200 shadow-xl mb-8">
+          <input type="checkbox" className="peer" />
+          <div className="collapse-title text-xl font-medium">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Project Information
+          </div>
+          <div className="collapse-content">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="label">Project ID:</label>
@@ -150,18 +156,20 @@ export default function ProjectDetails() {
                 </div>
               )}
             </div>
-            
           </div>
         </div>
 
         {/* Content Steps */}
-        <div className="steps steps-vertical w-full">
+        <div className="steps steps-vertical w-full [&>.step]:!gap-0 [&>.step>.step-content]:!mt-0">
           {/* Manuscript Step */}
           <div className="step step-primary">
             <div className="step-content w-full">
               <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
                 <input type="checkbox" className="peer" defaultChecked />
                 <div className="collapse-title text-xl font-medium">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
                   Manuscript
                 </div>
                 <div className="collapse-content">
@@ -183,6 +191,9 @@ export default function ProjectDetails() {
               <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
                 <input type="checkbox" className="peer" />
                 <div className="collapse-title text-xl font-medium">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
                   Audio
                 </div>
                 <div className="collapse-content">
@@ -204,6 +215,9 @@ export default function ProjectDetails() {
               <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
                 <input type="checkbox" className="peer" />
                 <div className="collapse-title text-xl font-medium">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
                   Summary for Slides
                 </div>
                 <div className="collapse-content">
@@ -225,6 +239,9 @@ export default function ProjectDetails() {
               <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
                 <input type="checkbox" className="peer" />
                 <div className="collapse-title text-xl font-medium">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 3h10a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2z" />
+                  </svg>
                   Slides
                 </div>
                 <div className="collapse-content">
