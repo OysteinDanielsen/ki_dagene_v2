@@ -13,8 +13,8 @@ const anthropic = new Anthropic({
 async function* generateManuscriptWithClaudeStream(githubUrl: string, projectName: string) {
   try {
     const stream = await anthropic.beta.messages.create({
-      model: "claude-3-5-haiku-20241022",
-      max_tokens: 7678,
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 15000,
       temperature: 1,
       stream: true,
       messages: [
@@ -23,21 +23,19 @@ async function* generateManuscriptWithClaudeStream(githubUrl: string, projectNam
           content: [
             {
               type: "text",
-              text: `Please analyze the GitHub repository ${projectName} with url ${githubUrl} and create a 1-minute presentation manuscript about the latest week's changes that would be noticeable to users.
-              It should be easy to read and engaging, suitable for a user-facing presentation. Write complete sentences so its easy to read. include a joke or light-hearted comment to make it engaging.
-
-Focus on:
-- User-facing features and improvements
-- Bug fixes that affect user experience
-- New functionality or enhancements
-- Performance improvements users would notice
-
-Format the manuscript as a clear, engaging presentation script that can be read in about 60 seconds. Include an introduction, main points, and conclusion.
-
-Project name: ${projectName}. Create headings and use emojis.
-
-Use the MCP server to access the GitHub repository and analyze code and recent commits to provide accurate, up-to-date information about what users would notice. 
-If there is no acces dont generate enything. Just create a simple message.` 
+              text: `Please analyze the GitHub repository ${projectName} with url ${githubUrl}.
+              Use the MCP server to access the GitHub repository and analyze code. And figurate what the project does by looking at the code.
+              Ignore .md files and commit messages, focus on the code itself.
+              
+              Create a manuscript for a presentation with the following:
+              Provide a 10 second description of the project, then summarize the changes in the last week that would be noticeable to users (50 seconds).
+              Focus on functionality for users and figuare out what the project can do for a user by looking at the code.
+              The summary should be engaging and easy to read, suitable for a user-facing presentation.
+              Include user-facing features, improvements, bug fixes, and new functionality.
+             
+              It should be easy to read and engaging, suitable for a user-facing presentation. Write complete sentences so its easy to read. Include a very mild amount of humor.
+              
+              The language should be norwegian. Do not include any status messages, just output the manuscript text directly.` 
             }
           ]
         }
@@ -50,12 +48,11 @@ If there is no acces dont generate enything. Just create a simple message.`
           authorization_token: `${process.env.GITHUB_TOKEN}`
         }
       ],
-      /*
+      betas: ["mcp-client-2025-04-04"],
       thinking: {
-        type: "enabled",
-        budget_tokens: 16000
-      }, */
-      betas: ["mcp-client-2025-04-04"]
+    "type": "enabled",
+    "budget_tokens": 9001
+  }
     });
 
     for await (const chunk of stream) {
