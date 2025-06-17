@@ -13,8 +13,8 @@ const anthropic = new Anthropic({
 async function* generateManuscriptWithClaudeStream(githubUrl: string, projectName: string) {
   try {
     const stream = await anthropic.beta.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
+      model: "claude-3-5-haiku-20241022",
+      max_tokens: 7678,
       temperature: 1,
       stream: true,
       messages: [
@@ -23,7 +23,7 @@ async function* generateManuscriptWithClaudeStream(githubUrl: string, projectNam
           content: [
             {
               type: "text",
-              text: `Please analyze the GitHub repository at ${githubUrl} and create a 1-minute presentation manuscript about the latest week's changes that would be noticeable to users.
+              text: `Please analyze the GitHub repository ${projectName} with url ${githubUrl} and create a 1-minute presentation manuscript about the latest week's changes that would be noticeable to users.
               It should be easy to read and engaging, suitable for a user-facing presentation. Write complete sentences so its easy to read. include a joke or light-hearted comment to make it engaging.
 
 Focus on:
@@ -36,7 +36,8 @@ Format the manuscript as a clear, engaging presentation script that can be read 
 
 Project name: ${projectName}. Create headings and use emojis.
 
-Use the MCP server to access the GitHub repository and analyze recent commits, pull requests, and releases to provide accurate, up-to-date information about what users would notice.`
+Use the MCP server to access the GitHub repository and analyze code and recent commits to provide accurate, up-to-date information about what users would notice. 
+If there is no acces dont generate enything. Just create a simple message.` 
             }
           ]
         }
