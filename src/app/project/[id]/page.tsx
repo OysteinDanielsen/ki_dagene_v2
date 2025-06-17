@@ -4,6 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { toast } from "react-hot-toast";
+import pptxgen from "pptxgenjs";
+import {
+  PDFDownloadLink,
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+} from "@react-pdf/renderer";
 
 interface ProjectData {
   id: string;
@@ -23,6 +32,60 @@ interface ProjectMetadata {
   projectName?: string;
   [key: string]: string | number | boolean | null | undefined;
 }
+
+interface Slide {
+  title: string;
+  content: string;
+  type: "title" | "content" | "image" | "bullet";
+}
+
+// Create styles for the PDF
+const styles = StyleSheet.create({
+  page: {
+    flexDirection: "column",
+    backgroundColor: "#FFFFFF",
+    padding: 30,
+  },
+  title: {
+    fontSize: 24,
+    textAlign: "center",
+    marginVertical: 20,
+    color: "#333333",
+  },
+  content: {
+    fontSize: 12,
+    textAlign: "justify",
+    marginVertical: 10,
+    lineHeight: 1.5,
+  },
+  bulletPoint: {
+    marginBottom: 5,
+  },
+  list: {
+    marginVertical: 10,
+  },
+});
+
+const SlidesPDF = ({ slides }: { slides: Slide[] }) => (
+  <Document>
+    {slides.map((slide, index) => (
+      <Page key={index} size="A4" orientation="landscape" style={styles.page}>
+        <Text style={styles.title}>{slide.title}</Text>
+        {slide.type === "bullet" ? (
+          <View style={styles.list}>
+            {slide.content.split("\n").map((item, idx) => (
+              <Text key={idx} style={styles.bulletPoint}>
+                • {item.trim()}
+              </Text>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.content}>{slide.content}</Text>
+        )}
+      </Page>
+    ))}
+  </Document>
+);
 
 export default function ProjectDetails() {
   const params = useParams();
@@ -45,11 +108,12 @@ export default function ProjectDetails() {
   const [isCheckingAudio, setIsCheckingAudio] = useState(true);
   const [selectedVoice, setSelectedVoice] = useState("alloy");
   const [availableVoices, setAvailableVoices] = useState({
-    alloy: "Male Voice (Clear, Professional)",
-    echo: "Male Voice (Warm, Engaging)",
-    fable: "Male Voice (Bright, Energetic)",
-    onyx: "Male Voice (Deep, Authoritative)",
-    nova: "Female Voice (Natural, Conversational)",
+    alloy: "Alloy (Male)",
+    echo: "Echo (Male)",
+    fable: "Fable (Female)",
+    onyx: "Onyx (Male)",
+    nova: "Nova (Female)",
+    shimmer: "Shimmer (Female)",
   });
   const [voiceSettings, setVoiceSettings] = useState({
     accent: 0.5,
@@ -63,6 +127,9 @@ export default function ProjectDetails() {
   const [selectedLanguage, setSelectedLanguage] = useState("en");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [slides, setSlides] = useState<Slide[]>([]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   const projectId = params.id as string;
 
@@ -83,6 +150,7 @@ export default function ProjectDetails() {
           audioForPresentation: data.audioForPresentation,
           metadata: data.metadata,
         });
+        setSlides(data.slides || []); // Initialize slides state
       } catch (error) {
         console.error("Error fetching project data:", error);
         setError(
@@ -130,7 +198,7 @@ export default function ProjectDetails() {
         URL.revokeObjectURL(audioUrl);
       }
     };
-  }, [params.id]);
+  }, [params.id, audioUrl]);
 
   const generateManuscript = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -236,49 +304,35 @@ export default function ProjectDetails() {
 - **Created:** ${
             projectMetadata.timeCreated
               ? new Date(projectMetadata.timeCreated).toLocaleDateString()
-              : "Unknown"
+              : "N/A"
           }
-- **Repository:** ${projectMetadata.githubUrl || "Not specified"}
+${
+  projectMetadata.githubUrl
+    ? `- **GitHub Repo:** [${projectMetadata.githubUrl}](${projectMetadata.githubUrl})`
+    : ""
+}
 
-## Key Points for Slides
-
-### Slide 1: Introduction
-- Project name and purpose
-- Brief overview of objectives
-
-### Slide 2: Technical Details
-- Technology stack
-- Architecture overview
-- Key components
-
-### Slide 3: Implementation
-- Development process
-- Key features implemented
-- Challenges overcome
-
-### Slide 4: Results
-- Achievements
-- Performance metrics
-- Lessons learned
-
-### Slide 5: Next Steps
-- Future improvements
-- Roadmap
-- Conclusion
-
-## Presentation Notes
-This summary provides the key points to include in your presentation slides. Customize each section based on your project's specific details and requirements.`,
+## Manuscript Content
+\`\`\`
+${projectData?.manuscript || "No manuscript available."}
+\`\`\`
+`,
         }),
       });
 
-      if (response.ok) {
-        // Refresh project data to show the new summary
-        window.location.reload();
-      } else {
-        console.error("Failed to generate summary");
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      const data = await response.json();
+      setProjectData((prevData) => ({
+        ...(prevData as ProjectData),
+        summaryForPresentation: data.summary,
+      }));
+      toast.success("Summary generated successfully!");
     } catch (error) {
       console.error("Error generating summary:", error);
+      toast.error("Failed to generate summary.");
     } finally {
       setSummaryLoading(false);
     }
@@ -288,54 +342,29 @@ This summary provides the key points to include in your presentation slides. Cus
     e: React.SyntheticEvent<HTMLAudioElement, Event>
   ) => {
     console.error("Audio playback error:", e);
-    let errorMessage = "Could not play audio. ";
-
-    const audioElement = e.currentTarget;
-    if (audioElement.error) {
-      switch (audioElement.error.code) {
-        case MediaError.MEDIA_ERR_ABORTED:
-          errorMessage +=
-            "Playback was aborted. Try generating the audio again.";
-          break;
-        case MediaError.MEDIA_ERR_NETWORK:
-          errorMessage +=
-            "A network error occurred. Try generating the audio again.";
-          break;
-        case MediaError.MEDIA_ERR_DECODE:
-          errorMessage +=
-            "Could not decode audio file. Try generating the audio again.";
-          break;
-        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-          errorMessage +=
-            "Audio format not supported. Try generating the audio again.";
-          break;
-        default:
-          errorMessage += "Try generating the audio again.";
-      }
-    }
-
-    setAudioError(errorMessage);
+    setAudioError(
+      "Failed to play audio. The file might be corrupted or missing."
+    );
     setAudioStatus("error");
-    setAudioUrl(null);
   };
 
   const handleAudioLoad = () => {
     setAudioError(null);
-    setAudioStatus("ready");
   };
 
   const handleGenerateAudio = async () => {
     if (!projectData?.manuscript) {
-      console.error("No content to generate audio from");
+      toast.error("Please generate manuscript content first.");
       return;
     }
 
+    setAudioLoading(true);
     setIsGenerating(true);
     setAudioError(null);
-    setAudioUrl(null);
+    setAudioStatus("generating");
 
     try {
-      const response = await fetch(`/api/project/${params.id}/audio`, {
+      const response = await fetch(`/api/project/${projectId}/audio`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -351,37 +380,257 @@ This summary provides the key points to include in your presentation slides. Cus
         throw new Error(errorData.error || "Failed to generate audio");
       }
 
-      // Create a blob URL from the response
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      setAudioUrl(url);
-
-      // Play the audio
-      const audioElement = audioRef.current;
-      if (audioElement) {
-        audioElement.src = url;
-        audioElement.load();
-        await audioElement.play();
-      }
+      setAudioUrl(`/api/project/${projectId}/audio`);
+      setAudioExists(true);
+      setAudioStatus("ready");
+      toast.success("Audio generated successfully!");
     } catch (error) {
       console.error("Error generating audio:", error);
       setAudioError(
-        error instanceof Error ? error.message : "Failed to generate audio"
+        error instanceof Error ? error.message : "Failed to generate audio."
       );
+      setAudioStatus("error");
+      setAudioUrl(null);
+      setAudioExists(false);
     } finally {
+      setAudioLoading(false);
       setIsGenerating(false);
     }
   };
 
   const handlePlayClick = async () => {
-    if (!audioExists) {
+    if (audioExists && audioUrl) {
+      if (audioRef.current) {
+        audioRef.current.play().catch((e) => {
+          console.error("Audio play failed:", e);
+          toast.error("Failed to play audio.");
+        });
+      }
+    } else if (projectData?.manuscript) {
       console.log("No audio file found, generating...");
       await handleGenerateAudio();
+    } else {
+      toast.error("Please generate manuscript content first.");
     }
   };
 
   const handleVoiceChange = (voiceId: string) => {
     setSelectedVoice(voiceId);
+  };
+
+  const handleGenerateSlides = async () => {
+    if (!projectData?.manuscript) {
+      toast.error("Please generate manuscript content first.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/project/${projectId}/slides`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ manuscript: projectData.manuscript }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate slides");
+      }
+
+      const data = await response.json();
+      setSlides(data.slides);
+      setCurrentSlideIndex(0);
+      toast.success("Slides generated successfully!");
+    } catch (error) {
+      console.error("Error generating slides:", error);
+      toast.error("Failed to generate slides.");
+      setSlides([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportPPTX = async () => {
+    try {
+      setIsExporting(true);
+      const pptx = new pptxgen();
+
+      // Set presentation properties for standard 16:9 layout
+      pptx.layout = "LAYOUT_WIDE"; // 13.3 x 7.5 inches
+      pptx.company = "AI Presentation Generator";
+      pptx.author = "AI Assistant";
+
+      // Define a consistent theme color palette
+      const themeColor = "4472C4"; // Primary Blue
+      const secondaryColor = "8FAADC"; // Lighter Blue
+      const accentColor = "D9E1F2"; // Very light blue for subtle backgrounds
+      const textColor = "333333"; // Dark grey for content text
+      const lightTextColor = "666666"; // Medium grey for page numbers
+
+      // Add slides
+      slides.forEach((slide: Slide, index: number) => {
+        const pptxSlide = pptx.addSlide();
+
+        // --- Background Illustrations (Simplified & Subtle) ---
+        // Large, subtle circle in top-right corner
+        pptxSlide.addShape(pptx.ShapeType.ellipse, {
+          x: 8.7, // Slightly off-canvas
+          y: -0.7, // Slightly off-canvas
+          w: 2.5,
+          h: 2.5,
+          fill: { color: accentColor, transparency: 70 },
+          line: { color: accentColor, transparency: 70 },
+        });
+
+        // Large, subtle rectangle in bottom-left corner
+        pptxSlide.addShape(pptx.ShapeType.rect, {
+          x: -0.7, // Slightly off-canvas
+          y: 6.2, // Slightly off-canvas
+          w: 3.0,
+          h: 1.0,
+          fill: { color: accentColor, transparency: 75 },
+          line: { color: accentColor, transparency: 75 },
+        });
+
+        // --- Header Bar (Increased Height) ---
+        pptxSlide.addShape(pptx.ShapeType.rect, {
+          x: 0,
+          y: 0,
+          w: "100%",
+          h: 2.8, // Further increased header height to accommodate multi-line titles with more buffer
+          fill: { color: themeColor },
+          line: { color: themeColor },
+        });
+
+        // --- Title Text (Precisely Centered in Header) ---
+        pptxSlide.addText([
+          {
+            text: slide.title,
+            options: {
+              x: 0,
+              y: 0.8, // Adjusted Y for better vertical centering within the larger header
+              w: "100%",
+              h: 1.8, // Increased height for text box to accommodate multi-line titles
+              fontSize: 24, // Optimized font size for safety with multi-lines
+              color: "FFFFFF",
+              bold: true,
+              align: "center",
+              fontFace: "Arial",
+            },
+          },
+        ]);
+
+        // --- Main Content Area (More Vertical Space) ---
+        const contentYStart = 3.2; // Adjusted start Y to be even further below the taller header
+        const contentWidth = 9.0;
+        const contentHeight = 4.2; // Adjusted height for content area
+
+        if (slide.type === "bullet") {
+          const bulletPoints = slide.content
+            .split("\n")
+            .map((item: string) => ({
+              text: item.trim(),
+              options: {
+                bullet: true,
+                indentLevel: 0,
+              },
+            }));
+          pptxSlide.addText(bulletPoints, {
+            x: 0.7,
+            y: contentYStart,
+            w: contentWidth,
+            h: contentHeight,
+            fontSize: 18,
+            color: textColor,
+            align: "left",
+            fontFace: "Arial",
+            lineSpacing: 22,
+          });
+        } else {
+          pptxSlide.addText([
+            {
+              text: slide.content,
+              options: {
+                x: 0.7,
+                y: contentYStart,
+                w: contentWidth,
+                h: contentHeight,
+                fontSize: 18,
+                color: textColor,
+                align: "left",
+                fontFace: "Arial",
+                lineSpacing: 22,
+              },
+            },
+          ]);
+        }
+
+        // --- Page Number ---
+        pptxSlide.addText([
+          {
+            text: `${index + 1}`,
+            options: {
+              x: 9.3,
+              y: 6.8,
+              w: 0.5,
+              h: 0.5,
+              fontSize: 12,
+              color: lightTextColor,
+              align: "right",
+              fontFace: "Arial",
+            },
+          },
+        ]);
+
+        // --- Footer Bar ---
+        pptxSlide.addShape(pptx.ShapeType.rect, {
+          x: 0,
+          y: 7.2,
+          w: "100%",
+          h: 0.3,
+          fill: { color: themeColor, transparency: 80 },
+          line: { color: themeColor, transparency: 80 },
+        });
+
+        // --- Slide-Specific Decorative Elements (Simplified & Controlled) ---
+        if (slide.type === "title") {
+          pptxSlide.addShape(pptx.ShapeType.trapezoid, {
+            x: 7.0,
+            y: 3.5,
+            w: 2.0,
+            h: 1.0,
+            fill: { color: secondaryColor, transparency: 60 },
+            line: { color: secondaryColor, transparency: 60 },
+          });
+        } else if (slide.type === "bullet") {
+          pptxSlide.addShape(pptx.ShapeType.line, {
+            x: 0.5,
+            y: 1.8, // Aligned with content top, but visually distinct
+            w: 0,
+            h: 4.7, // Adjusted height to fit content area
+            line: { color: secondaryColor, width: 2 },
+          });
+        } else {
+          pptxSlide.addShape(pptx.ShapeType.rect, {
+            x: 8.5,
+            y: 5.5,
+            w: 1.0,
+            h: 0.7,
+            fill: { color: accentColor, transparency: 50 },
+            line: { color: accentColor, transparency: 50 },
+          });
+        }
+      });
+
+      // Save the presentation
+      await pptx.writeFile({ fileName: "presentation.pptx" });
+    } catch (error) {
+      console.error("Error exporting to PowerPoint:", error);
+      toast.error("Failed to export to PowerPoint");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (loading) {
@@ -452,17 +701,16 @@ This summary provides the key points to include in your presentation slides. Cus
             {projectMetadata.projectName || projectId}
           </h1>
         </div>
-      </div>
-
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
-        {/* Project Info */}
-        <div className="collapse collapse-arrow bg-base-200 shadow-xl mb-8">
-          <input type="checkbox" className="peer" />
-          <div className="collapse-title text-xl font-medium">
+        <div className="navbar-end">
+          <button
+            className="btn btn-ghost btn-circle"
+            onClick={() => {
+              // Handle settings or other actions
+            }}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6 inline mr-2"
+              className="h-5 w-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -471,45 +719,49 @@ This summary provides the key points to include in your presentation slides. Cus
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
               />
             </svg>
-            Project Information
-          </div>
-          <div className="collapse-content">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="label">Project ID:</label>
-                <div className="badge badge-neutral">{projectId}</div>
-              </div>
-              {projectMetadata.timeCreated && (
-                <div>
-                  <label className="label">Created:</label>
-                  <div className="badge badge-secondary">
-                    {new Date(projectMetadata.timeCreated).toLocaleString()}
-                  </div>
-                </div>
-              )}
-              {projectMetadata.githubUrl && (
-                <div className="md:col-span-2">
-                  <label className="label">Repository:</label>
-                  <a
-                    href={projectMetadata.githubUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="link link-primary"
-                  >
-                    {projectMetadata.githubUrl}
-                  </a>
-                </div>
-              )}
-              {projectMetadata.projectName && (
-                <div>
-                  <label className="label">Project Name:</label>
-                  <div className="text-sm">{projectMetadata.projectName}</div>
-                </div>
-              )}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="container mx-auto p-4 max-w-4xl">
+        <div className="bg-base-200 shadow-xl rounded-box p-6 mb-8">
+          <h2 className="text-2xl font-bold mb-4">Project Details</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Project ID:</label>
+              <div className="badge badge-neutral">{projectId}</div>
             </div>
+            {projectMetadata.timeCreated && (
+              <div>
+                <label className="label">Created:</label>
+                <div className="badge badge-secondary">
+                  {new Date(projectMetadata.timeCreated).toLocaleString()}
+                </div>
+              </div>
+            )}
+            {projectMetadata.githubUrl && (
+              <div className="md:col-span-2">
+                <label className="label">Repository:</label>
+                <a
+                  href={projectMetadata.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link link-primary"
+                >
+                  {projectMetadata.githubUrl}
+                </a>
+              </div>
+            )}
+            {projectMetadata.projectName && (
+              <div>
+                <label className="label">Project Name:</label>
+                <div className="text-sm">{projectMetadata.projectName}</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -676,7 +928,7 @@ This summary provides the key points to include in your presentation slides. Cus
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 013-3h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
                   Audio
@@ -729,94 +981,34 @@ This summary provides the key points to include in your presentation slides. Cus
                           <div className="space-y-4">
                             {isCheckingAudio ? (
                               <div className="flex items-center justify-center p-4">
-                                <span className="loading loading-spinner loading-md"></span>
-                                <span className="ml-2">
-                                  Checking audio status...
-                                </span>
+                                <span className="loading loading-spinner loading-lg"></span>
                               </div>
-                            ) : (
-                              <div className="space-y-4">
-                                {/* Audio Player */}
-                                {audioUrl && (
-                                  <div className="mt-4">
-                                    <audio
-                                      ref={audioRef}
-                                      controls
-                                      className="w-full"
-                                      src={audioUrl}
-                                      onError={handleAudioError}
-                                      onLoadedData={handleAudioLoad}
-                                      preload="auto"
-                                      crossOrigin="anonymous"
-                                    >
-                                      Your browser does not support the audio
-                                      element.
-                                    </audio>
-                                  </div>
-                                )}
-
-                                {/* Error Message */}
-                                {audioError && (
-                                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                                    <p className="text-red-600">{audioError}</p>
-                                  </div>
-                                )}
-
-                                {/* Loading State */}
-                                {isGenerating && (
-                                  <div className="mt-4 flex items-center justify-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                    <span className="ml-2 text-gray-600">
-                                      Generating audio...
-                                    </span>
-                                  </div>
-                                )}
-
-                                {/* Audio Status */}
-                                {!isGenerating && !audioUrl && !audioError && (
-                                  <div className="mt-4 text-center text-gray-600">
-                                    Click "Generate Audio" to create an audio
-                                    version of the presentation
-                                  </div>
-                                )}
-
-                                {/* Voice Selection */}
-                                <div className="mt-4">
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Select Voice
-                                  </label>
-                                  <select
-                                    value={selectedVoice}
-                                    onChange={(e) =>
-                                      setSelectedVoice(e.target.value)
-                                    }
-                                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    disabled={isGenerating}
-                                  >
-                                    {Object.entries(availableVoices).map(
-                                      ([id, name]) => (
-                                        <option key={id} value={id}>
-                                          {name}
-                                        </option>
-                                      )
-                                    )}
-                                  </select>
-                                </div>
-
-                                {/* Generate Button */}
+                            ) : audioExists ? (
+                              <div className="flex flex-col items-center justify-center p-4">
+                                <audio
+                                  ref={audioRef}
+                                  controls
+                                  src={audioUrl || ""}
+                                  onEnded={() =>
+                                    console.log("Audio playback ended")
+                                  }
+                                  onError={handleAudioError}
+                                  onLoadedData={handleAudioLoad}
+                                  className="w-full max-w-md"
+                                ></audio>
                                 <button
-                                  className="btn btn-primary w-full mt-4"
+                                  className="btn btn-primary mt-4"
                                   onClick={handleGenerateAudio}
                                   disabled={
-                                    isGenerating || !projectData?.manuscript
+                                    audioLoading ||
+                                    !projectData?.manuscript ||
+                                    isGenerating
                                   }
                                 >
-                                  {isGenerating ? (
+                                  {audioLoading || isGenerating ? (
                                     <>
                                       <span className="loading loading-spinner loading-sm"></span>
-                                      {audioExists
-                                        ? "Regenerating..."
-                                        : "Generating Audio..."}
+                                      Regenerating Audio...
                                     </>
                                   ) : (
                                     <>
@@ -831,23 +1023,77 @@ This summary provides the key points to include in your presentation slides. Cus
                                           strokeLinecap="round"
                                           strokeLinejoin="round"
                                           strokeWidth={2}
-                                          d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                                         />
+                                      </svg>
+                                      Regenerate Audio
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center p-4">
+                                <p className="text-base-content/50 italic mb-4">
+                                  No audio generated yet.
+                                </p>
+                                <button
+                                  className="btn btn-primary"
+                                  onClick={handleGenerateAudio}
+                                  disabled={
+                                    audioLoading ||
+                                    !projectData?.manuscript ||
+                                    isGenerating
+                                  }
+                                >
+                                  {audioLoading || isGenerating ? (
+                                    <>
+                                      <span className="loading loading-spinner loading-sm"></span>
+                                      Generating Audio...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-5 w-5 mr-2"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
                                         <path
                                           strokeLinecap="round"
                                           strokeLinejoin="round"
                                           strokeWidth={2}
-                                          d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                                         />
                                       </svg>
-                                      {audioExists
-                                        ? "Regenerate Audio"
-                                        : "Generate & Play Audio"}
+                                      Generate Audio
                                     </>
                                   )}
                                 </button>
                               </div>
                             )}
+
+                            {/* Voice Selection */}
+                            <div className="form-control w-full">
+                              <label className="label">
+                                <span className="label-text">Voice</span>
+                              </label>
+                              <select
+                                className="select select-bordered w-full"
+                                value={selectedVoice}
+                                onChange={(e) =>
+                                  handleVoiceChange(e.target.value)
+                                }
+                              >
+                                {Object.entries(availableVoices).map(
+                                  ([id, name]) => (
+                                    <option key={id} value={id}>
+                                      {name}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -880,10 +1126,10 @@ This summary provides the key points to include in your presentation slides. Cus
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                  Summary for Slides
+                  Summary for Presentation
                 </div>
                 <div className="collapse-content">
                   <div className="prose max-w-none">
@@ -893,15 +1139,20 @@ This summary provides the key points to include in your presentation slides. Cus
                           {projectData.summaryForPresentation}
                         </ReactMarkdown>
                       </div>
+                    ) : summaryLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <span className="loading loading-spinner loading-lg"></span>
+                      </div>
                     ) : (
                       <div className="text-center py-8">
                         <p className="text-base-content/50 italic mb-4">
                           No summary content
                         </p>
                         <button
+                          type="button"
                           className="btn btn-primary"
                           onClick={generateSummary}
-                          disabled={summaryLoading}
+                          disabled={!projectData?.manuscript || summaryLoading}
                         >
                           {summaryLoading ? (
                             <>
@@ -937,7 +1188,7 @@ This summary provides the key points to include in your presentation slides. Cus
           </div>
 
           {/* Slides Step */}
-          <div className="flex items-start gap-4 relative z-10">
+          <div className="flex items-start gap-4 relative z-10 mb-8">
             <div className="flex flex-col items-center">
               <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">
                 4
@@ -958,17 +1209,193 @@ This summary provides the key points to include in your presentation slides. Cus
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 3h10a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2z"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                     />
                   </svg>
-                  Slides
+                  Presentation Slides
                 </div>
                 <div className="collapse-content">
-                  <div className="prose max-w-none">
-                    <p className="text-base-content/50 italic">
-                      No slides content available
-                    </p>
-                  </div>
+                  {slides.length > 0 ? (
+                    <div className="mt-4">
+                      <div className="flex justify-center items-center mb-4 space-x-2">
+                        <button
+                          className="btn btn-sm btn-outline"
+                          onClick={() =>
+                            setCurrentSlideIndex((prev) =>
+                              Math.max(0, prev - 1)
+                            )
+                          }
+                          disabled={currentSlideIndex === 0}
+                        >
+                          Previous
+                        </button>
+                        <span className="text-sm font-medium">
+                          Slide {currentSlideIndex + 1} of {slides.length}
+                        </span>
+                        <button
+                          className="btn btn-sm btn-outline"
+                          onClick={() =>
+                            setCurrentSlideIndex((prev) =>
+                              Math.min(slides.length - 1, prev + 1)
+                            )
+                          }
+                          disabled={currentSlideIndex === slides.length - 1}
+                        >
+                          Next
+                        </button>
+                      </div>
+
+                      <div className="bg-white p-6 rounded-lg shadow-inner flex flex-col items-center justify-center text-black">
+                        <h3 className="text-2xl font-bold mb-4 text-center">
+                          {slides[currentSlideIndex].title}
+                        </h3>
+                        <div className="w-full">
+                          {slides[currentSlideIndex].type === "bullet" ? (
+                            <ul className="list-disc pl-6 space-y-2">
+                              {slides[currentSlideIndex].content
+                                .split("\n")
+                                .map((item, index) => (
+                                  <li key={index} className="text-lg">
+                                    {item.trim()}
+                                  </li>
+                                ))}
+                            </ul>
+                          ) : (
+                            <p className="text-lg text-center">
+                              {slides[currentSlideIndex].content}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center gap-4 mt-8">
+                        <button
+                          className="btn btn-secondary"
+                          onClick={handleGenerateSlides}
+                          disabled={loading || !projectData?.manuscript}
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 mr-2"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                          </svg>
+                          Regenerate Slides
+                        </button>
+                        <button
+                          className="btn btn-accent"
+                          onClick={handleExportPPTX}
+                          disabled={isExporting || slides.length === 0}
+                        >
+                          {isExporting ? (
+                            <>
+                              <span className="loading loading-spinner loading-sm"></span>
+                              Exporting PPTX...
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth={1.5}
+                                stroke="currentColor"
+                                className="h-5 w-5 mr-2"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+                                />
+                              </svg>
+                              Export PPTX
+                            </>
+                          )}
+                        </button>
+                        <PDFDownloadLink
+                          document={<SlidesPDF slides={slides} />}
+                          fileName="presentation.pdf"
+                        >
+                          {({ blob, url, loading, error }) => (
+                            <button
+                              className="btn btn-info"
+                              disabled={loading || slides.length === 0}
+                            >
+                              {loading ? (
+                                <>
+                                  <span className="loading loading-spinner loading-sm"></span>
+                                  Generating PDF...
+                                </>
+                              ) : (
+                                <>
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={1.5}
+                                    stroke="currentColor"
+                                    className="h-5 w-5 mr-2"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12H7.5m3 0h3.75m-9.75 1.51c0 1.45 3.0 2.625 7.5 2.625s7.5-1.175 7.5-2.625M4.5 12v-1.5V9H5.25M6 15.75H4.5v-3.75m0-1.5L4.5 9m0 0H3.75M15 12h-3m-4.5 2.25H4.5M12 10.5h.008v.008H12V10.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                                    />
+                                  </svg>
+                                  Export PDF
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </PDFDownloadLink>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-base-content/50 italic mb-4">
+                        No slides generated yet.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleGenerateSlides}
+                        disabled={loading || !projectData?.manuscript}
+                      >
+                        {loading ? (
+                          <>
+                            <span className="loading loading-spinner loading-sm"></span>
+                            Generating Slides...
+                          </>
+                        ) : (
+                          <>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5 mr-2"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                              />
+                            </svg>
+                            Generate Slides
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
