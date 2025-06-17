@@ -113,6 +113,7 @@ export default function ProjectDetails() {
     nova: "Nova (Female) - Warm and expressive voice",
     shimmer: "Shimmer (Female) - Soft and melodic voice",
   });
+  const [enthusiasm, setEnthusiasm] = useState(0.5);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -315,7 +316,7 @@ export default function ProjectDetails() {
         throw new Error(errorData.error || "Failed to generate audio");
       }
 
-      setAudioUrl(`/api/project/${projectId}/audio`);
+      setAudioUrl(`/api/project/${projectId}/audio?_t=${Date.now()}`);
       setAudioExists(true);
       setAudioStatus("ready");
       toast.success("Audio generated successfully!");
@@ -932,6 +933,29 @@ export default function ProjectDetails() {
                             )
                           )}
                         </select>
+                      </div>
+
+                      {/* Enthusiasm Slider */}
+                      <div className="form-control w-full max-w-xs mt-4">
+                        <label className="label">
+                          <span className="label-text">Enthusiasm</span>
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={enthusiasm}
+                          onChange={(e) =>
+                            setEnthusiasm(parseFloat(e.target.value))
+                          }
+                          className="range range-primary"
+                          disabled={audioLoading}
+                        />
+                        <div className="w-full flex justify-between text-xs px-2 mt-1">
+                          <span>Calm</span>
+                          <span>Enthusiastic</span>
+                        </div>
                       </div>
 
                       {/* Generate Audio Button */}
