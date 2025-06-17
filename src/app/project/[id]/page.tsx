@@ -110,10 +110,18 @@ export default function ProjectDetails() {
               
               if (data.status === 'starting') {
                 console.log('Generation started');
+              } else if (data.heartbeat) {
+                console.log('Keep-alive heartbeat received');
               } else if (data.chunk) {
                 setStreamingText(prev => prev + data.chunk);
+                if (data.progress) {
+                  console.log(`Progress: ${data.progress.chunkCount} chunks, ${data.progress.length} chars`);
+                }
               } else if (data.complete) {
                 console.log('Generation completed');
+                if (data.stats) {
+                  console.log(`Stats: ${data.stats.chunkCount} chunks, ${data.stats.length} chars, ${data.stats.duration}ms`);
+                }
                 setManuscriptLoading(false);
                 setTimeout(() => window.location.reload(), 1000);
                 return;

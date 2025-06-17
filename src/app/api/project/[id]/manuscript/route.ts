@@ -6,15 +6,21 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const MAIN_FOLDER = 'storage';
 
+// Configure route for longer timeout
+export const maxDuration = 300; // 5 minutes
+export const dynamic = 'force-dynamic';
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  timeout: 300000, // 5 minutes timeout
+  maxRetries: 2,
 });
 
 async function* generateManuscriptWithClaudeStream(githubUrl: string, projectName: string) {
   try {
     const stream = await anthropic.beta.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 15000,
+      model: "claude-3-7-sonnet-20250219",
+      max_tokens: 5000,
       temperature: 1,
       stream: true,
       messages: [
@@ -49,10 +55,12 @@ async function* generateManuscriptWithClaudeStream(githubUrl: string, projectNam
         }
       ],
       betas: ["mcp-client-2025-04-04"],
+      /*
       thinking: {
     "type": "enabled",
     "budget_tokens": 9001
   }
+    */
     });
 
     for await (const chunk of stream) {
@@ -98,20 +106,58 @@ export async function POST(
 
     const stream = new ReadableStream({
       async start(controller) {
+        let keepAliveInterval: NodeJS.Timeout | null = null;
+        
         try {
           console.log('Starting manuscript generation for:', metadata.githubUrl);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ status: 'starting' })}\n\n`));
+          
+          // Send keep-alive heartbeat every 30 seconds
+          keepAliveInterval = setInterval(() => {
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ heartbeat: Date.now() })}\n\n`));
+            } catch {
+              console.log('Keep-alive failed, connection likely closed');
+              if (keepAliveInterval) clearInterval(keepAliveInterval);
+            }
+          }, 30000);
+          
+          let chunkCount = 0;
+          const startTime = Date.now();
           
           for await (const chunk of generateManuscriptWithClaudeStream(
             metadata.githubUrl, 
             metadata.projectName || id
           )) {
             fullText += chunk;
-            console.log('Streaming chunk:', chunk.substring(0, 50) + '...');
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`));
+            chunkCount++;
+            
+            console.log(`Chunk ${chunkCount}: ${chunk.substring(0, 50)}...`);
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+              chunk, 
+              progress: { chunkCount, length: fullText.length }
+            })}\n\n`));
+            
+            // Save progress every 10 chunks
+            if (chunkCount % 10 === 0) {
+              const dirPath = path.join(process.cwd(), MAIN_FOLDER, id);
+              if (!existsSync(dirPath)) {
+                await mkdir(dirPath, { recursive: true });
+              }
+              const tempPath = path.join(dirPath, 'manuscript_temp.md');
+              await writeFile(tempPath, fullText, 'utf8');
+              console.log(`Progress saved: ${chunkCount} chunks, ${fullText.length} chars`);
+            }
           }
 
-          console.log('Generation complete, saving file...');
+          const endTime = Date.now();
+          console.log(`Generation complete in ${endTime - startTime}ms. Total chunks: ${chunkCount}, Length: ${fullText.length}`);
+          
+          // Clear keep-alive interval
+          if (keepAliveInterval) {
+            clearInterval(keepAliveInterval);
+            keepAliveInterval = null;
+          }
           
           // Save the complete manuscript to file
           const dirPath = path.join(process.cwd(), MAIN_FOLDER, id);
@@ -122,11 +168,20 @@ export async function POST(
 
           const filePath = path.join(dirPath, 'manuscript.md');
           await writeFile(filePath, fullText, 'utf8');
+          
+          // Remove temp file if it exists
+          const tempPath = path.join(dirPath, 'manuscript_temp.md');
+          if (existsSync(tempPath)) {
+            await writeFile(tempPath, '', 'utf8'); // Clear temp file
+          }
 
           console.log('File saved successfully');
           
           // Send completion signal
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ complete: true })}\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+            complete: true, 
+            stats: { chunkCount, length: fullText.length, duration: endTime - startTime }
+          })}\n\n`));
           controller.close();
         } catch (error) {
           console.error('Error in stream:', error);
@@ -149,6 +204,27 @@ export async function POST(
           }
           
           console.error('Sending error to client:', errorMessage);
+          
+          // Clear keep-alive interval on error
+          if (keepAliveInterval) {
+            clearInterval(keepAliveInterval);
+          }
+          
+          // Save partial content if we have any
+          if (fullText.length > 0) {
+            try {
+              const dirPath = path.join(process.cwd(), MAIN_FOLDER, id);
+              if (!existsSync(dirPath)) {
+                await mkdir(dirPath, { recursive: true });
+              }
+              const partialPath = path.join(dirPath, 'manuscript_partial.md');
+              await writeFile(partialPath, fullText, 'utf8');
+              console.log(`Saved partial content: ${fullText.length} characters`);
+            } catch (saveError) {
+              console.error('Failed to save partial content:', saveError);
+            }
+          }
+          
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errorMessage })}\n\n`));
           controller.close();
         }
@@ -160,6 +236,7 @@ export async function POST(
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no', // Disable nginx buffering
       },
     });
 
