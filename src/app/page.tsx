@@ -16,6 +16,9 @@ interface Project {
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [githubUrl, setGithubUrl] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -33,6 +36,52 @@ export default function Home() {
 
     fetchProjects();
   }, []);
+
+  const createProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setCreating(true);
+
+    try {
+      const response = await fetch('/api/projects/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ githubUrl }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to create project';
+        try {
+          const data = await response.json();
+          errorMessage = data.error || errorMessage;
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = `${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+
+      // Reset form
+      setGithubUrl('');
+      
+      // Refresh projects list
+      const projectsResponse = await fetch('/api/projects');
+      const projectsData = await projectsResponse.json();
+      setProjects(projectsData.projects || []);
+
+      // Navigate to the new project
+      router.push(`/project/${data.projectId}`);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setCreating(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-base-100">
       {/* Hero Section */}
@@ -45,12 +94,47 @@ export default function Home() {
             </p>
             
             <div className="flex justify-center mb-12">
-              <button className="btn btn-primary btn-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Generate Presentation
-              </button>
+              <form onSubmit={createProject} className="w-full max-w-lg">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text text-lg font-medium">Enter GitHub Repository URL</span>
+                  </label>
+                  <div className="input-group">
+                    <input
+                      type="url"
+                      placeholder="https://github.com/username/repository"
+                      className="input input-bordered input-lg flex-1"
+                      value={githubUrl}
+                      onChange={(e) => setGithubUrl(e.target.value)}
+                      required
+                    />
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary btn-lg"
+                      disabled={creating || !githubUrl.trim()}
+                    >
+                      {creating ? (
+                        <>
+                          <span className="loading loading-spinner loading-sm"></span>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          Create
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {error && (
+                    <label className="label">
+                      <span className="label-text-alt text-error">{error}</span>
+                    </label>
+                  )}
+                </div>
+              </form>
             </div>
 
             {/* Projects Section */}
