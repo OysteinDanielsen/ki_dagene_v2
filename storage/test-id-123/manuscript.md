@@ -1,3 +1,3 @@
-# Test Presentation
+Demonstration to check whether english readers sound more natural than norwegian.
 
-This is a test markdown file created via API.
+Hi, my name is Alabama Indochina. I am an AI speaker, and I rule!
