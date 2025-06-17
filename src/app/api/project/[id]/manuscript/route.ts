@@ -19,7 +19,7 @@ const anthropic = new Anthropic({
 async function* generateManuscriptWithClaudeStream(githubUrl: string, projectName: string) {
   try {
     const stream = await anthropic.beta.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-3-5-haiku-20241022",
       max_tokens: 8192,
       temperature: 1,
       stream: true,
@@ -29,26 +29,31 @@ async function* generateManuscriptWithClaudeStream(githubUrl: string, projectNam
           content: [
             {
               type: "text",
-              text: `Create a presentation manuscript for the GitHub repository: ${githubUrl}
+              text: `Create a 1-minute presentation manuscript about the GitHub project: ${projectName} (${githubUrl})
 
-IMPORTANT: Output the manuscript directly without any analysis steps or status messages.
+              Super important: use github mcp with Github_search_code and Github_get_file_contents tools for creating the manuscript
+              Impotant: Write directly without any analysis or status messages.
+              Impotant: Ignore commit messages unless its super obious what the commit is about from a user prespective.
+              Important: ignore the readme.md file, it is not relevant for the presentation. Use the code to figure at what functionalty the user has access to. Use thee title of the buttons or other ui elements to figure this out.
 
-Create a 1-minute presentation manuscript in Norwegian with:
+# ${projectName} - Presentation
 
-## Structure:
-1. **Introduksjon** (10 sekunder): Brief description of what ${projectName} does
-2. **Hva er nytt** (50 sekunder): Recent changes and improvements that users would notice
+## Introduction (10 sekunder)
+Write a brief description of what this project does.
 
-## Requirements:
-- Write in Norwegian
-- Be engaging and easy to read
+## What is new (50 sekunder) 
+Write about recent improvements and features in the last week users would notice.
+
+Requirements:
+- Write engaging content in English
+- Use markdown format
+- Write in a friendly, approachable tone
 - Include mild humor
-- Focus on user-facing features and benefits
-- No technical jargon
-- Complete sentences only
-- Output manuscript text immediately
+- Focus on user benefits
+- Use complete sentences
+- Be conversational
 
-Start writing the manuscript now:` 
+Start the manuscript content now:` 
             }
           ]
         }
@@ -62,16 +67,38 @@ Start writing the manuscript now:`
         }
       ],
       betas: ["mcp-client-2025-04-04"],
+      /*
       thinking: {
         "type": "enabled",
         "budget_tokens": 1024
-    },
+    }, */
     });
 
+    console.log('Starting to process stream...');
+    let hasContent = false;
+    
     for await (const chunk of stream) {
+      console.log('Received chunk type:', chunk.type);
+      
       if (chunk.type === 'content_block_delta' && 'text' in chunk.delta) {
+        hasContent = true;
+        console.log('Yielding text chunk:', chunk.delta.text.substring(0, 50) + '...');
         yield chunk.delta.text;
+      } else if (chunk.type === 'content_block_start') {
+        console.log('Content block started');
+      } else if (chunk.type === 'content_block_stop') {
+        console.log('Content block stopped');
+      } else if (chunk.type === 'message_start') {
+        console.log('Message started');
+      } else if (chunk.type === 'message_stop') {
+        console.log('Message stopped');
+      } else {
+        console.log('Other chunk type:', chunk.type);
       }
+    }
+    
+    if (!hasContent) {
+      console.log('No content received from Claude');
     }
 
   } catch (error) {
