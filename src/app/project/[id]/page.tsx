@@ -17,7 +17,6 @@ import {
 interface ProjectData {
   id: string;
   manuscript: string;
-  summaryForPresentation?: string;
   audioForPresentation?: string;
   metadata: {
     title?: string;
@@ -95,7 +94,6 @@ export default function ProjectDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [manuscriptLoading, setManuscriptLoading] = useState(false);
-  const [summaryLoading, setSummaryLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [manuscriptError, setManuscriptError] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
@@ -108,23 +106,13 @@ export default function ProjectDetails() {
   const [isCheckingAudio, setIsCheckingAudio] = useState(true);
   const [selectedVoice, setSelectedVoice] = useState("alloy");
   const [availableVoices, setAvailableVoices] = useState({
-    alloy: "Alloy (Male)",
-    echo: "Echo (Male)",
-    fable: "Fable (Female)",
-    onyx: "Onyx (Male)",
-    nova: "Nova (Female)",
-    shimmer: "Shimmer (Female)",
+    alloy: "Alloy (Male) - Balanced and versatile voice",
+    echo: "Echo (Male) - Deep and resonant voice",
+    fable: "Fable (Female) - Clear and engaging voice",
+    onyx: "Onyx (Male) - Strong and authoritative voice",
+    nova: "Nova (Female) - Warm and expressive voice",
+    shimmer: "Shimmer (Female) - Soft and melodic voice",
   });
-  const [voiceSettings, setVoiceSettings] = useState({
-    accent: 0.5,
-    emotional_range: 0.5,
-    intonation: 0.5,
-    impressions: 0.5,
-    speed: 0.5,
-    tone: 0.5,
-    whispering: 0.0,
-  });
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -146,7 +134,6 @@ export default function ProjectDetails() {
         setProjectData({
           id: data.id,
           manuscript: data.manuscript,
-          summaryForPresentation: data.summaryForPresentation,
           audioForPresentation: data.audioForPresentation,
           metadata: data.metadata,
         });
@@ -283,58 +270,6 @@ export default function ProjectDetails() {
       setManuscriptError(
         error instanceof Error ? error.message : "Unknown error"
       );
-    }
-  };
-
-  const generateSummary = async () => {
-    setSummaryLoading(true);
-    try {
-      const response = await fetch(`/api/project/${projectId}/summary`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text: `# Summary for Presentation - ${
-            projectMetadata.projectName || projectId
-          }
-
-## Project Overview
-- **Project ID:** ${projectId}
-- **Created:** ${
-            projectMetadata.timeCreated
-              ? new Date(projectMetadata.timeCreated).toLocaleDateString()
-              : "N/A"
-          }
-${
-  projectMetadata.githubUrl
-    ? `- **GitHub Repo:** [${projectMetadata.githubUrl}](${projectMetadata.githubUrl})`
-    : ""
-}
-
-## Manuscript Content
-\`\`\`
-${projectData?.manuscript || "No manuscript available."}
-\`\`\`
-`,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setProjectData((prevData) => ({
-        ...(prevData as ProjectData),
-        summaryForPresentation: data.summary,
-      }));
-      toast.success("Summary generated successfully!");
-    } catch (error) {
-      console.error("Error generating summary:", error);
-      toast.error("Failed to generate summary.");
-    } finally {
-      setSummaryLoading(false);
     }
   };
 
@@ -727,7 +662,7 @@ ${projectData?.manuscript || "No manuscript available."}
       </div>
 
       {/* Main Content Area */}
-      <div className="container mx-auto p-4 max-w-4xl">
+      <div className="container mx-auto px-4 py-8">
         <div className="bg-base-200 shadow-xl rounded-box p-6 mb-8">
           <h2 className="text-2xl font-bold mb-4">Project Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -773,41 +708,172 @@ ${projectData?.manuscript || "No manuscript available."}
             style={{ height: "calc(100% - 2rem)" }}
           ></div>
 
-          {/* Manuscript Step */}
-          <div className="flex items-start gap-4 relative z-10 mb-8">
-            <div className="flex flex-col items-center">
-              <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">
-                1
+          <div className="flex flex-col gap-8">
+            {/* Manuscript Step */}
+            <div className="flex items-start gap-4 relative z-10 mb-8">
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">
+                  1
+                </div>
+              </div>
+              <div className="flex-1 -mt-1">
+                <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
+                  <input type="checkbox" className="peer" />
+                  <div className="collapse-title text-xl font-medium">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6 inline mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                    Manuscript
+                  </div>
+                  <div className="collapse-content">
+                    <div className="prose max-w-none">
+                      {projectData?.manuscript ? (
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown>
+                            {projectData.manuscript}
+                          </ReactMarkdown>
+                        </div>
+                      ) : manuscriptError ? (
+                        <div className="text-center py-8">
+                          <div className="alert alert-error mb-4">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="stroke-current shrink-0 h-6 w-6"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <div>
+                              <h3 className="font-bold">Generation Failed</h3>
+                              <div className="text-xs">{manuscriptError}</div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={generateManuscript}
+                            disabled={manuscriptLoading}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5 mr-2"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                              />
+                            </svg>
+                            Try Again
+                          </button>
+                        </div>
+                      ) : manuscriptLoading && streamingText ? (
+                        <div>
+                          <div className="flex items-center gap-2 mb-4">
+                            <span className="loading loading-spinner loading-sm"></span>
+                            <span className="text-sm text-base-content/70">
+                              Generating manuscript...
+                            </span>
+                          </div>
+                          <div className="bg-base-200 p-4 rounded prose prose-sm max-w-none">
+                            <ReactMarkdown>{streamingText}</ReactMarkdown>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-base-content/50 italic mb-4">
+                            No manuscript content
+                          </p>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={generateManuscript}
+                            disabled={manuscriptLoading}
+                          >
+                            {manuscriptLoading ? (
+                              <>
+                                <span className="loading loading-spinner loading-sm"></span>
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-5 w-5 mr-2"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                  />
+                                </svg>
+                                Generate Manuscript
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex-1 -mt-1">
-              <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
-                <input type="checkbox" className="peer" defaultChecked />
-                <div className="collapse-title text-xl font-medium">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 inline mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  Manuscript
+
+            {/* Audio Step */}
+            <div className="flex items-start gap-4 relative z-10 mb-8">
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">
+                  2
                 </div>
-                <div className="collapse-content">
-                  <div className="prose max-w-none">
-                    {projectData?.manuscript ? (
-                      <div className="prose prose-sm max-w-none">
-                        <ReactMarkdown>{projectData.manuscript}</ReactMarkdown>
-                      </div>
-                    ) : manuscriptError ? (
-                      <div className="text-center py-8">
+              </div>
+              <div className="flex-1 -mt-1">
+                <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
+                  <input type="checkbox" className="peer" />
+                  <div className="collapse-title text-xl font-medium">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6 inline mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                      />
+                    </svg>
+                    Audio
+                  </div>
+                  <div className="collapse-content">
+                    <div className="prose max-w-none">
+                      {audioError ? (
                         <div className="alert alert-error mb-4">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -823,559 +889,187 @@ ${projectData?.manuscript || "No manuscript available."}
                             />
                           </svg>
                           <div>
-                            <h3 className="font-bold">Generation Failed</h3>
-                            <div className="text-xs">{manuscriptError}</div>
+                            <h3 className="font-bold">
+                              Audio Generation Failed
+                            </h3>
+                            <div className="text-xs">{audioError}</div>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={generateManuscript}
-                          disabled={manuscriptLoading}
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5 mr-2"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                      ) : null}
+
+                      {/* Audio Player */}
+                      {audioUrl && (
+                        <div className="w-full mt-4">
+                          <audio
+                            ref={audioRef}
+                            src={audioUrl}
+                            controls
+                            className="w-full"
+                            onError={handleAudioError}
+                            onLoadedData={handleAudioLoad}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          </svg>
-                          Try Again
+                            Your browser does not support the audio element.
+                          </audio>
+                        </div>
+                      )}
+
+                      {/* Voice Selection */}
+                      <div className="form-control w-full max-w-xs mt-4">
+                        <label className="label">
+                          <span className="label-text">Select Voice</span>
+                        </label>
+                        <select
+                          className="select select-bordered w-full"
+                          value={selectedVoice}
+                          onChange={(e) => setSelectedVoice(e.target.value)}
+                          disabled={audioLoading}
+                        >
+                          {Object.entries(availableVoices).map(
+                            ([id, description]) => (
+                              <option key={id} value={id}>
+                                {description}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+
+                      {/* Generate Audio Button */}
+                      <div className="mt-4">
+                        <button
+                          className="btn btn-primary"
+                          onClick={handleGenerateAudio}
+                          disabled={
+                            audioLoading ||
+                            !projectData?.manuscript ||
+                            isGenerating
+                          }
+                        >
+                          {audioLoading || isGenerating ? (
+                            <>
+                              <span className="loading loading-spinner loading-sm"></span>
+                              {audioUrl
+                                ? "Regenerating Audio..."
+                                : "Generating Audio..."}
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5 mr-2"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d={
+                                    audioUrl
+                                      ? "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                      : "M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                  }
+                                />
+                              </svg>
+                              {audioUrl ? "Regenerate Audio" : "Generate Audio"}
+                            </>
+                          )}
                         </button>
                       </div>
-                    ) : manuscriptLoading && streamingText ? (
-                      <div>
-                        <div className="flex items-center gap-2 mb-4">
-                          <span className="loading loading-spinner loading-sm"></span>
-                          <span className="text-sm text-base-content/70">
-                            Generating manuscript...
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Slides Step */}
+            <div className="flex items-start gap-4 relative z-10 mb-8">
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">
+                  3
+                </div>
+              </div>
+              <div className="flex-1 -mt-1">
+                <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
+                  <input type="checkbox" className="peer" />
+                  <div className="collapse-title text-xl font-medium">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6 inline mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Presentation Slides
+                  </div>
+                  <div className="collapse-content">
+                    {slides.length > 0 ? (
+                      <div className="mt-4">
+                        <div className="flex justify-center items-center mb-4 space-x-2">
+                          <button
+                            className="btn btn-sm btn-outline"
+                            onClick={() =>
+                              setCurrentSlideIndex((prev) =>
+                                Math.max(0, prev - 1)
+                              )
+                            }
+                            disabled={currentSlideIndex === 0}
+                          >
+                            Previous
+                          </button>
+                          <span className="text-sm font-medium">
+                            Slide {currentSlideIndex + 1} of {slides.length}
                           </span>
-                        </div>
-                        <div className="bg-base-200 p-4 rounded prose prose-sm max-w-none">
-                          <ReactMarkdown>{streamingText}</ReactMarkdown>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <p className="text-base-content/50 italic mb-4">
-                          No manuscript content
-                        </p>
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={generateManuscript}
-                          disabled={manuscriptLoading}
-                        >
-                          {manuscriptLoading ? (
-                            <>
-                              <span className="loading loading-spinner loading-sm"></span>
-                              Generating...
-                            </>
-                          ) : (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-5 w-5 mr-2"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                />
-                              </svg>
-                              Generate Manuscript
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Audio Step */}
-          <div className="flex items-start gap-4 relative z-10 mb-8">
-            <div className="flex flex-col items-center">
-              <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">
-                2
-              </div>
-            </div>
-            <div className="flex-1 -mt-1">
-              <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
-                <input type="checkbox" className="peer" />
-                <div className="collapse-title text-xl font-medium">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 inline mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 013-3h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  Audio
-                </div>
-                <div className="collapse-content">
-                  <div className="prose max-w-none">
-                    {audioError ? (
-                      <div className="alert alert-error mb-4">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="stroke-current shrink-0 h-6 w-6"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                        <div>
-                          <h3 className="font-bold">Audio Generation Failed</h3>
-                          <div className="text-xs">{audioError}</div>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="mt-4">
-                      <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
-                        <input type="checkbox" className="peer" />
-                        <div className="collapse-title text-xl font-medium">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-6 w-6 inline mr-2"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                          <button
+                            className="btn btn-sm btn-outline"
+                            onClick={() =>
+                              setCurrentSlideIndex((prev) =>
+                                Math.min(slides.length - 1, prev + 1)
+                              )
+                            }
+                            disabled={currentSlideIndex === slides.length - 1}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                            />
-                          </svg>
-                          Audio Settings
+                            Next
+                          </button>
                         </div>
-                        <div className="collapse-content">
-                          <div className="space-y-4">
-                            {isCheckingAudio ? (
-                              <div className="flex items-center justify-center p-4">
-                                <span className="loading loading-spinner loading-lg"></span>
-                              </div>
-                            ) : audioExists ? (
-                              <div className="flex flex-col items-center justify-center p-4">
-                                <audio
-                                  ref={audioRef}
-                                  controls
-                                  src={audioUrl || ""}
-                                  onEnded={() =>
-                                    console.log("Audio playback ended")
-                                  }
-                                  onError={handleAudioError}
-                                  onLoadedData={handleAudioLoad}
-                                  className="w-full max-w-md"
-                                ></audio>
-                                <button
-                                  className="btn btn-primary mt-4"
-                                  onClick={handleGenerateAudio}
-                                  disabled={
-                                    audioLoading ||
-                                    !projectData?.manuscript ||
-                                    isGenerating
-                                  }
-                                >
-                                  {audioLoading || isGenerating ? (
-                                    <>
-                                      <span className="loading loading-spinner loading-sm"></span>
-                                      Regenerating Audio...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-5 w-5 mr-2"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                        />
-                                      </svg>
-                                      Regenerate Audio
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center p-4">
-                                <p className="text-base-content/50 italic mb-4">
-                                  No audio generated yet.
-                                </p>
-                                <button
-                                  className="btn btn-primary"
-                                  onClick={handleGenerateAudio}
-                                  disabled={
-                                    audioLoading ||
-                                    !projectData?.manuscript ||
-                                    isGenerating
-                                  }
-                                >
-                                  {audioLoading || isGenerating ? (
-                                    <>
-                                      <span className="loading loading-spinner loading-sm"></span>
-                                      Generating Audio...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-5 w-5 mr-2"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                        />
-                                      </svg>
-                                      Generate Audio
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                            )}
 
-                            {/* Voice Selection */}
-                            <div className="form-control w-full">
-                              <label className="label">
-                                <span className="label-text">Voice</span>
-                              </label>
-                              <select
-                                className="select select-bordered w-full"
-                                value={selectedVoice}
-                                onChange={(e) =>
-                                  handleVoiceChange(e.target.value)
-                                }
-                              >
-                                {Object.entries(availableVoices).map(
-                                  ([id, name]) => (
-                                    <option key={id} value={id}>
-                                      {name}
-                                    </option>
-                                  )
-                                )}
-                              </select>
-                            </div>
+                        <div className="bg-white p-6 rounded-lg shadow-inner flex flex-col items-center justify-center text-black">
+                          <h3 className="text-2xl font-bold mb-4 text-center">
+                            {slides[currentSlideIndex].title}
+                          </h3>
+                          <div className="w-full">
+                            {slides[currentSlideIndex].type === "bullet" ? (
+                              <ul className="list-disc pl-6 space-y-2">
+                                {slides[currentSlideIndex].content
+                                  .split("\n")
+                                  .map((item, index) => (
+                                    <li key={index} className="text-lg">
+                                      {item.trim()}
+                                    </li>
+                                  ))}
+                              </ul>
+                            ) : (
+                              <p className="text-lg text-center">
+                                {slides[currentSlideIndex].content}
+                              </p>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Summary Step */}
-          <div className="flex items-start gap-4 relative z-10 mb-8">
-            <div className="flex flex-col items-center">
-              <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">
-                3
-              </div>
-            </div>
-            <div className="flex-1 -mt-1">
-              <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
-                <input type="checkbox" className="peer" />
-                <div className="collapse-title text-xl font-medium">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 inline mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  Summary for Presentation
-                </div>
-                <div className="collapse-content">
-                  <div className="prose max-w-none">
-                    {projectData?.summaryForPresentation ? (
-                      <div className="prose prose-sm max-w-none">
-                        <ReactMarkdown>
-                          {projectData.summaryForPresentation}
-                        </ReactMarkdown>
-                      </div>
-                    ) : summaryLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <span className="loading loading-spinner loading-lg"></span>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <p className="text-base-content/50 italic mb-4">
-                          No summary content
-                        </p>
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={generateSummary}
-                          disabled={!projectData?.manuscript || summaryLoading}
-                        >
-                          {summaryLoading ? (
-                            <>
-                              <span className="loading loading-spinner loading-sm"></span>
-                              Generating...
-                            </>
-                          ) : (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-5 w-5 mr-2"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                />
-                              </svg>
-                              Generate Summary
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Slides Step */}
-          <div className="flex items-start gap-4 relative z-10 mb-8">
-            <div className="flex flex-col items-center">
-              <div className="w-8 h-8 bg-primary text-primary-content rounded-full flex items-center justify-center text-sm font-bold">
-                4
-              </div>
-            </div>
-            <div className="flex-1 -mt-1">
-              <div className="collapse collapse-arrow bg-base-100 shadow-xl w-full">
-                <input type="checkbox" className="peer" />
-                <div className="collapse-title text-xl font-medium">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 inline mr-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                  Presentation Slides
-                </div>
-                <div className="collapse-content">
-                  {slides.length > 0 ? (
-                    <div className="mt-4">
-                      <div className="flex justify-center items-center mb-4 space-x-2">
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={() =>
-                            setCurrentSlideIndex((prev) =>
-                              Math.max(0, prev - 1)
-                            )
-                          }
-                          disabled={currentSlideIndex === 0}
-                        >
-                          Previous
-                        </button>
-                        <span className="text-sm font-medium">
-                          Slide {currentSlideIndex + 1} of {slides.length}
-                        </span>
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={() =>
-                            setCurrentSlideIndex((prev) =>
-                              Math.min(slides.length - 1, prev + 1)
-                            )
-                          }
-                          disabled={currentSlideIndex === slides.length - 1}
-                        >
-                          Next
-                        </button>
-                      </div>
-
-                      <div className="bg-white p-6 rounded-lg shadow-inner flex flex-col items-center justify-center text-black">
-                        <h3 className="text-2xl font-bold mb-4 text-center">
-                          {slides[currentSlideIndex].title}
-                        </h3>
-                        <div className="w-full">
-                          {slides[currentSlideIndex].type === "bullet" ? (
-                            <ul className="list-disc pl-6 space-y-2">
-                              {slides[currentSlideIndex].content
-                                .split("\n")
-                                .map((item, index) => (
-                                  <li key={index} className="text-lg">
-                                    {item.trim()}
-                                  </li>
-                                ))}
-                            </ul>
-                          ) : (
-                            <p className="text-lg text-center">
-                              {slides[currentSlideIndex].content}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex justify-center gap-4 mt-8">
-                        <button
-                          className="btn btn-secondary"
-                          onClick={handleGenerateSlides}
-                          disabled={loading || !projectData?.manuscript}
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5 mr-2"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                        <div className="flex justify-center gap-4 mt-8">
+                          <button
+                            className="btn btn-secondary"
+                            onClick={handleGenerateSlides}
+                            disabled={loading || !projectData?.manuscript}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          </svg>
-                          Regenerate Slides
-                        </button>
-                        <button
-                          className="btn btn-accent"
-                          onClick={handleExportPPTX}
-                          disabled={isExporting || slides.length === 0}
-                        >
-                          {isExporting ? (
-                            <>
-                              <span className="loading loading-spinner loading-sm"></span>
-                              Exporting PPTX...
-                            </>
-                          ) : (
-                            <>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={1.5}
-                                stroke="currentColor"
-                                className="h-5 w-5 mr-2"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
-                                />
-                              </svg>
-                              Export PPTX
-                            </>
-                          )}
-                        </button>
-                        <PDFDownloadLink
-                          document={<SlidesPDF slides={slides} />}
-                          fileName="presentation.pdf"
-                        >
-                          {({ blob, url, loading, error }) => (
-                            <button
-                              className="btn btn-info"
-                              disabled={loading || slides.length === 0}
-                            >
-                              {loading ? (
-                                <>
-                                  <span className="loading loading-spinner loading-sm"></span>
-                                  Generating PDF...
-                                </>
-                              ) : (
-                                <>
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={1.5}
-                                    stroke="currentColor"
-                                    className="h-5 w-5 mr-2"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12H7.5m3 0h3.75m-9.75 1.51c0 1.45 3.0 2.625 7.5 2.625s7.5-1.175 7.5-2.625M4.5 12v-1.5V9H5.25M6 15.75H4.5v-3.75m0-1.5L4.5 9m0 0H3.75M15 12h-3m-4.5 2.25H4.5M12 10.5h.008v.008H12V10.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
-                                    />
-                                  </svg>
-                                  Export PDF
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </PDFDownloadLink>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-base-content/50 italic mb-4">
-                        No slides generated yet.
-                      </p>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={handleGenerateSlides}
-                        disabled={loading || !projectData?.manuscript}
-                      >
-                        {loading ? (
-                          <>
-                            <span className="loading loading-spinner loading-sm"></span>
-                            Generating Slides...
-                          </>
-                        ) : (
-                          <>
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               className="h-5 w-5 mr-2"
@@ -1387,15 +1081,118 @@ ${projectData?.manuscript || "No manuscript available."}
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                               />
                             </svg>
-                            Generate Slides
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                            Regenerate Slides
+                          </button>
+                          <button
+                            className="btn btn-accent"
+                            onClick={handleExportPPTX}
+                            disabled={isExporting || slides.length === 0}
+                          >
+                            {isExporting ? (
+                              <>
+                                <span className="loading loading-spinner loading-sm"></span>
+                                Exporting PPTX...
+                              </>
+                            ) : (
+                              <>
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  strokeWidth={1.5}
+                                  stroke="currentColor"
+                                  className="h-5 w-5 mr-2"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"
+                                  />
+                                </svg>
+                                Export PPTX
+                              </>
+                            )}
+                          </button>
+                          <PDFDownloadLink
+                            document={<SlidesPDF slides={slides} />}
+                            fileName="presentation.pdf"
+                          >
+                            {({ blob, url, loading, error }) => (
+                              <button
+                                className="btn btn-info"
+                                disabled={loading || slides.length === 0}
+                              >
+                                {loading ? (
+                                  <>
+                                    <span className="loading loading-spinner loading-sm"></span>
+                                    Generating PDF...
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      strokeWidth={1.5}
+                                      stroke="currentColor"
+                                      className="h-5 w-5 mr-2"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12H7.5m3 0h3.75m-9.75 1.51c0 1.45 3.0 2.625 7.5 2.625s7.5-1.175 7.5-2.625M4.5 12v-1.5V9H5.25M6 15.75H4.5v-3.75m0-1.5L4.5 9m0 0H3.75M15 12h-3m-4.5 2.25H4.5M12 10.5h.008v.008H12V10.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                                      />
+                                    </svg>
+                                    Export PDF
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </PDFDownloadLink>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-base-content/50 italic mb-4">
+                          No slides generated yet.
+                        </p>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={handleGenerateSlides}
+                          disabled={loading || !projectData?.manuscript}
+                        >
+                          {loading ? (
+                            <>
+                              <span className="loading loading-spinner loading-sm"></span>
+                              Generating Slides...
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5 mr-2"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                />
+                              </svg>
+                              Generate Slides
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
