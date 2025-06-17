@@ -19,8 +19,8 @@ const anthropic = new Anthropic({
 async function* generateManuscriptWithClaudeStream(githubUrl: string, projectName: string) {
   try {
     const stream = await anthropic.beta.messages.create({
-      model: "claude-3-7-sonnet-20250219",
-      max_tokens: 5000,
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 8192,
       temperature: 1,
       stream: true,
       messages: [
@@ -29,19 +29,26 @@ async function* generateManuscriptWithClaudeStream(githubUrl: string, projectNam
           content: [
             {
               type: "text",
-              text: `Please analyze the GitHub repository ${projectName} with url ${githubUrl}.
-              Use the MCP server to access the GitHub repository and analyze code. And figurate what the project does by looking at the code.
-              Ignore .md files and commit messages, focus on the code itself.
-              
-              Create a manuscript for a presentation with the following:
-              Provide a 10 second description of the project, then summarize the changes in the last week that would be noticeable to users (50 seconds).
-              Focus on functionality for users and figuare out what the project can do for a user by looking at the code.
-              The summary should be engaging and easy to read, suitable for a user-facing presentation.
-              Include user-facing features, improvements, bug fixes, and new functionality.
-             
-              It should be easy to read and engaging, suitable for a user-facing presentation. Write complete sentences so its easy to read. Include a very mild amount of humor.
-              
-              The language should be norwegian. Do not include any status messages, just output the manuscript text directly.` 
+              text: `Create a presentation manuscript for the GitHub repository: ${githubUrl}
+
+IMPORTANT: Output the manuscript directly without any analysis steps or status messages.
+
+Create a 1-minute presentation manuscript in Norwegian with:
+
+## Structure:
+1. **Introduksjon** (10 sekunder): Brief description of what ${projectName} does
+2. **Hva er nytt** (50 sekunder): Recent changes and improvements that users would notice
+
+## Requirements:
+- Write in Norwegian
+- Be engaging and easy to read
+- Include mild humor
+- Focus on user-facing features and benefits
+- No technical jargon
+- Complete sentences only
+- Output manuscript text immediately
+
+Start writing the manuscript now:` 
             }
           ]
         }
@@ -55,12 +62,10 @@ async function* generateManuscriptWithClaudeStream(githubUrl: string, projectNam
         }
       ],
       betas: ["mcp-client-2025-04-04"],
-      /*
       thinking: {
-    "type": "enabled",
-    "budget_tokens": 9001
-  }
-    */
+        "type": "enabled",
+        "budget_tokens": 1024
+    },
     });
 
     for await (const chunk of stream) {
