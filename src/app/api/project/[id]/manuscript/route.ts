@@ -32,17 +32,20 @@ async function* generateManuscriptWithClaudeStream(githubUrl: string, projectNam
               text: `Create a 1-minute presentation manuscript about the GitHub project: ${projectName} (${githubUrl})
 
               Super important: use github mcp with Github_search_code and Github_get_file_contents tools for creating the manuscript
-              Impotant: Write directly without any analysis or status messages.
-              Impotant: Ignore commit messages unless its super obious what the commit is about from a user prespective.
+              Important: Write directly without any analysis or status messages.
+              Important: Ignore commit messages unless its super obious what the commit is about from a user prespective.
               Important: ignore the readme.md file, it is not relevant for the presentation. Use the code to figure at what functionalty the user has access to. Use thee title of the buttons or other ui elements to figure this out.
+              Important: Use github mcp and look at the commits to find out what is new in the last week.
+
 
 # ${projectName} - Presentation
 
 ## Introduction (10 sekunder)
 Write a brief description of what this project does.
 
-## What is new (50 sekunder) 
+## What is new in the last week (50 sekunder) 
 Write about recent improvements and features in the last week users would notice.
+Use the git history to find whats new in the last week
 
 Requirements:
 - Write engaging content in English
